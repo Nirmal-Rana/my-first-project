@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Student Enrollment Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+  <h1 class="mb-4 text-center">🎓 Student Enrollment Dashboard</h1>
+
+  <!-- Overview Cards -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center p-3">
+        <h5>Total Students</h5>
+        <h2 id="totalStudents">0</h2>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center p-3">
+        <h5>New This Month</h5>
+        <h2 id="newStudents">0</h2>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center p-3">
+        <h5>Inactive Students</h5>
+        <h2 id="inactiveStudents">0</h2>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center p-3">
+        <h5>Departments</h5>
+        <h2 id="totalDepartments">4</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- Select Department -->
+  <div class="card shadow-sm p-3 mb-4">
+    <h5 class="mb-3">Select Department</h5>
+    <select class="form-select w-25" id="departmentSelect">
+      <option value="BBA">BBA</option>
+      <option value="BHM">BHM</option>
+      <option value="BIT">BIT</option>
+      <option value="BSC">BSC</option>
+    </select>
+  </div>
+
+  <!-- Add Student Form -->
+  <div class="card shadow-sm p-3 mb-4">
+    <h5 class="mb-3">Enroll Student</h5>
+    <form id="studentForm" class="row g-3">
+      <div class="col-md-6">
+        <input type="text" id="studentName" class="form-control" placeholder="Student Name" required>
+      </div>
+      <div class="col-md-3">
+        <select id="studentStatus" class="form-select" required>
+          <option value="">Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Add Student</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm p-3">
+        <h5 class="mb-3">Enrollment by Department</h5>
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm p-3">
+        <h5 class="mb-3">Enrollment Distribution</h5>
+        <canvas id="pieChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Table -->
+  <div class="card shadow-sm p-3">
+    <h5 class="mb-3">Student List</h5>
+    <table class="table table-striped">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="studentTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Script -->
+<script>
+  const departments = ["BBA", "BHM", "BIT", "BSC"];
+  let students = [];
+  const tableBody = document.getElementById("studentTable");
+  const totalStudentsEl = document.getElementById("totalStudents");
+  const newStudentsEl = document.getElementById("newStudents");
+  const inactiveStudentsEl = document.getElementById("inactiveStudents");
+
+  const barCtx = document.getElementById("barChart").getContext("2d");
+  const pieCtx = document.getElementById("pieChart").getContext("2d");
+  let barChart, pieChart;
+
+  function updateDashboard() {
+    // Update table
+    tableBody.innerHTML = "";
+    students.forEach((s) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${s.id}</td>
+        <td>${s.name}</td>
+        <td>${s.department}</td>
+        <td>${s.status}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteStudent(${s.id})">Delete</button></td>
+      `;
+      tableBody.appendChild(row);
+    });
+
+    // Update counts
+    totalStudentsEl.textContent = students.length;
+    inactiveStudentsEl.textContent = students.filter(s => s.status === "Inactive").length;
+    newStudentsEl.textContent = students.length;
+
+    // Update charts
+    const deptCounts = {};
+    departments.forEach(d => { deptCounts[d] = 0; });
+    students.forEach(s => { deptCounts[s.department]++; });
+    const labels = Object.keys(deptCounts);
+    const data = Object.values(deptCounts);
+
+    if (barChart) barChart.destroy();
+    barChart = new Chart(barCtx, {
+      type: "bar",
+      data: { labels, datasets: [{ label: "Students", data, backgroundColor: "#4F46E5" }] }
+    });
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(pieCtx, {
+      type: "pie",
+      data: { labels, datasets: [{ data, backgroundColor: ["#4F46E5", "#22C55E", "#F59E0B", "#EF4444"] }] }
+    });
+  }
+
+  function deleteStudent(id) {
+    students = students.filter(s => s.id !== id);
+    updateDashboard();
+  }
+
+  document.getElementById("studentForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("studentName").value.trim();
+    const status = document.getElementById("studentStatus").value;
+    const dept = document.getElementById("departmentSelect").value;
+    if (name && status) {
+      students.push({ id: students.length ? students[students.length-1].id + 1 : 1, name, department: dept, status });
+      document.getElementById("studentForm").reset();
+      updateDashboard();
+    }
+  });
+
+  // Initial render
+  updateDashboard();
+</script>
+
+</body>
+</html>
